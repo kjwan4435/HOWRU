@@ -1,9 +1,18 @@
 const screeningRouter = require("express").Router();
 
+let result = require("../models/answer.model");
+
+const sleepBlock = "5f2ab465a61f23000117c5a8";
+const activityBlock = "5f2d04eea231f900011b2f9a";
+const foodBlock = "5f2d06d25d623f00015bd6a6";
+const moodBlock = "5f2d05a5f046510001e0fb57";
+const socialBlock = "5f2d0753b05d5f0001034d6d";
+
 screeningRouter.post("/0", function (req, res) {
   const question = req.body.userRequest.block.name;
   const blockid = req.body.userRequest.block.id;
   const answer = req.body.userRequest.utterance;
+  const category = "mood";
   const id = req.body.userRequest.user.id;
   const date = new Date().toLocaleDateString("en-US");
 
@@ -11,6 +20,7 @@ screeningRouter.post("/0", function (req, res) {
     question,
     blockid,
     answer,
+    category,
     id,
     date
   });
@@ -34,7 +44,7 @@ screeningRouter.post("/0", function (req, res) {
       outputs: [
         {
           simpleText: {
-            text: `${sentence}`
+            text: `ㅎㅎ`
           }
         },
         {
