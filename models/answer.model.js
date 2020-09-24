@@ -12,10 +12,10 @@ const answerSchema = new Schema(
       type: String,
       required: true
     },
-    blockid: {
-      type: String,
-      required: true
-    },
+    // blockid: {
+    //   type: String,
+    //   required: true
+    // },
     category: {
       type: String,
       required: true
@@ -26,7 +26,7 @@ const answerSchema = new Schema(
     },
     date: {
       type: String,
-      required: false
+      required: true
     }
   },
   { timestamps: true }
