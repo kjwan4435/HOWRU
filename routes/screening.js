@@ -1,38 +1,45 @@
 const screeningRouter = require("express").Router();
 
 const getResponse = require('./getResponse.js');
+const getResponseDemoDaily = require('./getResponseDemoDaily.js');
+const getResponseDemoFeedback = require('./getResponseDemoFeedback.js');
+
 
 // let result = require("../models/answer.model");
 
+//
 screeningRouter.post("/0", function (req, res) {
-  // const question = req.body.userRequest.block.name;
-  // const blockid = req.body.userRequest.block.id;
-  // const answer = req.body.userRequest.utterance;
-  // const category = "mood";
-  // const id = req.body.userRequest.user.id;
-  // const date = new Date().toLocaleDateString("en-US");
-  //
-  // // console.log(req.body);
-  //
-  // const Answer = new result({
-  //   question,
-  //   blockid,
-  //   answer,
-  //   category,
-  //   id,
-  //   date
-  // });
-  //
-  // Answer.save()
-  //   .then(() => console.log("Answer was saved"))
-  //   .catch((err) => console.log(`Error: ${err}`));
+  // 즉시 실행 함수
+  // -> getResponse 함수로부터 값을 받은 뒤 res.status(200).send 실행하는 것을 보장하기 위해 async - await 사용
 
-  getResponse(req.body).then(function(result){
-    res.status(200).send(result);
-  }).catch(function(err){
-    console.log(err);
-  })
+  (async function(){
+    const response = await getResponse(req.body);
+    // console.log("========screening========");
+    // console.log(response);
+    // console.log("========!screening========");
+    await res.status(200).send(response);
+  })()
 
+
+});
+
+
+// Test block: daily block
+// block id is:
+screeningRouter.post("/demoDaily", function (req, res) {
+  (async function(){
+    const response = await getResponseDemoDaily(req.body);
+    await res.status(200).send(response);
+  })()
+});
+
+// Test block: daily block
+// block id is:
+screeningRouter.post("/demoFeedback", function (req, res) {
+  (async function(){
+    const response = await getResponseDemoFeedback(req.body);
+    await res.status(200).send(response);
+  })()
 });
 
 module.exports = screeningRouter;

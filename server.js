@@ -15,10 +15,13 @@ app.use(cors());
 app.use(logger("dev"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static('public/images'))
+
 
 // app.use("/user", userRouter);
 app.use("/screening", screeningRouter);
 
 app.listen(PORT, function () {
+  console.log(__dirname);
   console.log(`💛 KAKAO CHATBOT SERVER IS RUNNING ON ${PORT}`);
 });
