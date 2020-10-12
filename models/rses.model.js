@@ -2,61 +2,60 @@ const mongoose = require("mongoose");
 
 const Schema = mongoose.Schema;
 
-const phq9Schema = new Schema(
+const rsesSchema = new Schema(
   {
     // kakao id
     id: {
       type: String,
-      // unique: true,
-      required: "ID REQUIRED"
+      required: true
     },
-    phq9_0: {
+    rses_0: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_1: {
+    rses_1: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_2: {
+    rses_2: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_3: {
+    rses_3: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_4: {
+    rses_4: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_5: {
+    rses_5: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_6: {
+    rses_6: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_7: {
+    rses_7: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_8: {
+    rses_8: {
       type: String,
       required: true,
       default: "-"
     },
     //코로나19 감염 경험 여부
-    phq9_9: {
+    rses_9: {
       type: String,
       required: true,
       default: "-"
@@ -70,5 +69,5 @@ const phq9Schema = new Schema(
   { timestamps: true }
 );
 
-const phq9 = mongoose.model("phq9", phq9Schema);
-module.exports = phq9;
+const rses = mongoose.model("rses", rsesSchema);
+module.exports = rses;

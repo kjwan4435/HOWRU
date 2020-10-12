@@ -4,22 +4,16 @@ const getResponse = require('./getResponse.js');
 const getResponseDemoDaily = require('./getResponseDemoDaily.js');
 const getResponseDemoFeedback = require('./getResponseDemoFeedback.js');
 
-
-// let result = require("../models/answer.model");
-
-//
 screeningRouter.post("/0", function (req, res) {
-  // 즉시 실행 함수
-  // -> getResponse 함수로부터 값을 받은 뒤 res.status(200).send 실행하는 것을 보장하기 위해 async - await 사용
-
+  // Immediately-invoked function: -> getResponse 함수로부터 값을 받은 뒤 res.status(200).send 실행하는 것을 보장하기 위해 async - await 사용
   (async function(){
-    const response = await getResponse(req.body);
-    // console.log("========screening========");
-    // console.log(response);
-    // console.log("========!screening========");
-    await res.status(200).send(response);
+    try{
+      const response = await getResponse(req.body);
+      await res.status(200).send(response); //Does res.send() provide promise? it seems not.. (no need await)
+    } catch(err) {
+        console.log('post/0 error, ', err); // 에러처리 로직
+    }
   })()
-
 
 });
 

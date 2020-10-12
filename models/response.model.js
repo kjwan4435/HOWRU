@@ -2,73 +2,60 @@ const mongoose = require("mongoose");
 
 const Schema = mongoose.Schema;
 
-const phq9Schema = new Schema(
+//block	blockItem	emotionStatus	age	sex	botText	buttonLabel	buttonMessage	nextBlock	comment
+const responseSchema = new Schema(
   {
-    // kakao id
-    id: {
+    block: {
       type: String,
-      // unique: true,
-      required: "ID REQUIRED"
+      required: true
     },
-    phq9_0: {
+    blockItem: {
       type: String,
-      required: true,
-      default: "-"
+      required: true
     },
-    phq9_1: {
+    emotionStatus: {
       type: String,
       required: true,
-      default: "-"
+      default: "WELCOME"
     },
-    phq9_2: {
+    age: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_3: {
+    sex: {
+      type: String,
+      required: true,
+      default: "SET_START"
+    },
+    botText: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_4: {
+    buttonLabel: {
+      type: String,
+      required: true,
+      default: 0
+    },
+    buttonMessage: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_5: {
+    nextBlock: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_6: {
+    comment: {
       type: String,
       required: true,
       default: "-"
-    },
-    phq9_7: {
-      type: String,
-      required: true,
-      default: "-"
-    },
-    phq9_8: {
-      type: String,
-      required: true,
-      default: "-"
-    },
-    //코로나19 감염 경험 여부
-    phq9_9: {
-      type: String,
-      required: true,
-      default: "-"
-    },
-    completed: {
-      type: Boolean,
-      required: true,
-      default: false
     }
   },
   { timestamps: true }
 );
 
-const phq9 = mongoose.model("phq9", phq9Schema);
-module.exports = phq9;
+const response = mongoose.model("response", responseSchema);
+module.exports = response;

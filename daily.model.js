@@ -2,73 +2,59 @@ const mongoose = require("mongoose");
 
 const Schema = mongoose.Schema;
 
-const phq9Schema = new Schema(
+//id, lastLogin, lastBlock, emotionStatus, age, sex, region
+const daily_Schema = new Schema(
   {
     // kakao id
     id: {
       type: String,
-      // unique: true,
-      required: "ID REQUIRED"
+      required: true
     },
-    phq9_0: {
+    rate: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_1: {
+    sleep: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_2: {
+    eat: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_3: {
+    mood: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_4: {
+    social: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_5: {
+    activity: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_6: {
-      type: String,
-      required: true,
-      default: "-"
-    },
-    phq9_7: {
-      type: String,
-      required: true,
-      default: "-"
-    },
-    phq9_8: {
-      type: String,
-      required: true,
-      default: "-"
-    },
-    //코로나19 감염 경험 여부
-    phq9_9: {
-      type: String,
-      required: true,
-      default: "-"
-    },
+    // 위 5개 항목이 다 차면 true. 하루 질문 시작할 때 false인게 있으면 전부 제거.
     completed: {
       type: Boolean,
       required: true,
       default: false
-    }
+    },
+    // PHQ9 테스트 조건인 7개 일상 질문에 포함됐다면 true로 변경. PHQ9 test 조건: 이게 false인 애들 7개 존재.
+    phq9Tested: {
+      type: Boolean,
+      required: true,
+      default: false
+    },
   },
   { timestamps: true }
 );
 
-const phq9 = mongoose.model("phq9", phq9Schema);
-module.exports = phq9;
+const daily = mongoose.model("daily", daily_Schema);
+module.exports = daily;

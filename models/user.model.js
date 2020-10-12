@@ -10,37 +10,59 @@ const userSchema = new Schema(
       type: String,
       // unique: true,
       required: true
-      // required: "ID REQUIRED"
     },
-    // Check last log-in -> if long time no see, greet the user
-    lastLoginDate: {
+    // Check last use -> if long time no see, greet the user; reset the process
+    lastUseDate: {
       type: String,
       required: true
     },
-    // Last block the user were in -> When there was error, start from this block
+    // last block
     lastBlock: {
       type: String,
-      required: true
+      required: true,
+      default: "WELCOME"
+    },
+    // last block item
+    lastBlockItem: {
+      type: String,
+      required: true,
+      default: "-"
+    },
+    // next block
+    nextBlock: {
+      type: String,
+      required: true,
+      default: "SET_START"
+    },
+    // next block item
+    nextBlockItem: {
+      type: String,
+      required: true,
+      default: "-"
     },
     // emotion_status -> for weekly feedback; updated at every daily screening
     emotionStatus: {
       type: Number,
-      required: true
+      required: true,
+      default: 0
     },
     // age; 20살이하, 20대, 30/40대 50/60대 60살이상
     age: {
       type: String,
-      required: true
+      required: true,
+      default: "-"
     },
     // sex; 남, 여, 기타
     sex: {
       type: String,
-      required: true
+      required: true,
+      default: "-"
     },
-    // region; 수도권, 강원, 충청, 영남, 호남, 제주
+    // region; 수도권, 강원, 충청, 경상, 전라, 제주
     region: {
       type: String,
-      required: true
+      required: true,
+      default: "-"
     }
   },
   { timestamps: true }

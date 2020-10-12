@@ -2,61 +2,44 @@ const mongoose = require("mongoose");
 
 const Schema = mongoose.Schema;
 
-const phq9Schema = new Schema(
+const isiSchema = new Schema(
   {
     // kakao id
     id: {
       type: String,
-      // unique: true,
-      required: "ID REQUIRED"
+      required: true
     },
-    phq9_0: {
+    isi_0: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_1: {
+    isi_1: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_2: {
+    isi_2: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_3: {
+    isi_3: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_4: {
+    isi_4: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_5: {
+    isi_5: {
       type: String,
       required: true,
       default: "-"
     },
-    phq9_6: {
-      type: String,
-      required: true,
-      default: "-"
-    },
-    phq9_7: {
-      type: String,
-      required: true,
-      default: "-"
-    },
-    phq9_8: {
-      type: String,
-      required: true,
-      default: "-"
-    },
-    //코로나19 감염 경험 여부
-    phq9_9: {
+    isi_6: {
       type: String,
       required: true,
       default: "-"
@@ -70,5 +53,5 @@ const phq9Schema = new Schema(
   { timestamps: true }
 );
 
-const phq9 = mongoose.model("phq9", phq9Schema);
-module.exports = phq9;
+const isi = mongoose.model("isi", isiSchema);
+module.exports = isi;
