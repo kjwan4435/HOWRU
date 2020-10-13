@@ -7,12 +7,16 @@ let isiDB  = require("../models/isi-k.model");
 let rsesDB  = require("../models/rses.model");
 let ptsdDB  = require("../models/ptsd.model");
 
+const path = require("path");
+const { spawn } = require("child_process");
+
+var isDemo = true; // if true, demo mode, week analysis will use one day data
+
 // let answer = require("../models/answer.model");
 
 // TODO:
 // 웰컴블록에서 phq9로 바로 가는경우 구현
-// 사용자별 트랜드 그래프
-// 사용자별 phq9 그래프, or 그려놓고 값에 따라 불러올까?
+// 같은 이름의 그래프 있으면 그거 쓰기, 없으면 생성
 // Daily push, Daily push할때 진행중이던 블록이 있으면 (특히 daily나 phq9, gad7, isi-k등의 테스트일때 그 블락 무효화 -> db에 저장중이던거 제거?)
 // demo 어떻게 보여줄지 생각?
 // {problems} 자연스럽게 바꾸기
@@ -104,10 +108,12 @@ function getResponse(body) {
           userObj.nextBlock = "SET_START";
           userObj.nextBlockItem = "-";
         }
+        //for test
         else if( answer === "감정 모니터링 다시 시작" ){
           userObj.lastBlock = "-";
           userObj.lastBlockItem = "-";
-          userObj.nextBlock = "WEEKLY_DOCTOR_MEET";
+          userObj.nextBlock = "DAILY_FORTUNE_END";
+          if(isDemo){ userObj.nextBlock = "DAILY_FORTUNE_END"; }
           userObj.nextBlockItem = "-";
         }
 
@@ -146,13 +152,22 @@ function getResponse(body) {
           else if(userObj.lastBlockItem==="ACTIVITY") { dailyObj.activity = answer; }
           await dailyObj.save();
         }
-        else if(userObj.lastBlock==="DAILY_END"){
+        else if(userObj.lastBlock==="DAILY_FORTUNE_END"){
           let dailyObj = await dailyDB.find({id: id, phq9Tested: false, completed: true});
+
 
           if(dailyObj.length > 6){
             userObj.nextBlock = "WEEKLY_START";
             userObj.nextBlockItem = "-";
           }
+
+          if(isDemo){
+            if(dailyObj.length > 0){
+              userObj.nextBlock = "WEEKLY_START";
+              userObj.nextBlockItem = "-";
+            }
+          }
+
         }
         else if(userObj.lastBlock==="PHQ9_START"){
           const phq9 = new phq9DB({ id: id });
@@ -272,7 +287,6 @@ function getResponse(body) {
             // const daily = new dailyDB({ id: id });
             // dailyObj = await daily.save();
           }
-
           if(dailyObj.sleep !== "-" && dailyObj.eat !== "-" && dailyObj.mood !== "-" && dailyObj.social !== "-" && dailyObj.activity !== "-") {
             userObj.nextBlock = "DAILY_DETAIL_END";
             userObj.nextBlockItem = "-";
@@ -298,6 +312,12 @@ function getResponse(body) {
           else if(userObj.emotionStatus < 4){ userObj.nextBlockItem = "4"; }
           else if(userObj.emotionStatus < 6){ userObj.nextBlockItem = "5"; }
           else { userObj.nextBlockItem = "6"; }
+
+          if(isDemo){
+            if(userObj.emotionStatus === -1){ userObj.nextBlockItem = "1"; }
+            else if(userObj.emotionStatus === 0){ userObj.nextBlockItem = "3"; }
+            else { userObj.nextBlockItem = "5"; }
+          }
         }
         else if(userObj.nextBlock==="WEEKLY_CHECK"){
           if(userObj.emotionStatus < -2){
@@ -310,7 +330,36 @@ function getResponse(body) {
           }
           else{
             userObj.nextBlock = "WEEKLY_FINE";
+            userObj.nextBlockItem = "-";
           }
+
+          if(isDemo){
+            userObj.nextBlock = "WEEKLY_NOT_FINE";
+            userObj.nextBlockItem = "1";
+          }
+
+          let dailyObj = await dailyDB.find({id: id, phq9Tested: false, completed: true}, {}, { sort: { 'createdAt' : -1 }});
+
+          if(isDemo){
+            valStr = ""+dailyObj[0].rate+"_0_1_-1_-1_0_-1";
+          }
+          else{
+            valStr = "";
+            for(let i = 0; i<7; i++){
+              // dailyObj[i].phq9Tested = true; //TODO: do this after phq9 test
+              // await dailyObj[i].save();
+              valStr += dailyObj[i].rate;
+              if(i < 6){
+                valStr += "_";
+              }
+            }
+          }
+
+          console.log(valStr);
+
+          await makeplot_dailyPerWeek(valStr);
+          responseReplaceDict['{chart_dailyPerWeek}'] = ("chart_dailyPerWeek/dailyPerWeek_"+valStr);
+
         }
         else if(userObj.nextBlock==="WEEKLY_DOCTOR_ANALYSIS"){
           if(userObj.emotionStatus > -2){ userObj.nextBlockItem = "0"; }
@@ -318,20 +367,19 @@ function getResponse(body) {
           else if(userObj.emotionStatus > -6){ userObj.nextBlockItem = "2"; }
           else if(userObj.emotionStatus > -8){ userObj.nextBlockItem = "3"; }
 
-          let dailyObj = await dailyDB.find({id: id, phq9Tested: false, completed: true});
-
-          // userObj.nextBlock = "WEEKLY_START";
-          // userObj.nextBlockItem = "-";
-
-          for(let i = 0; i<dailyObj.length; i++){
-            // dailyObj[i].phq9Tested = true; //TODO
-            // await dailyObj[i].save();
+          if(isDemo){
+            if(userObj.emotionStatus === -1 ){ userObj.nextBlockItem = "2"; }
+            else if(userObj.emotionStatus === 0){ userObj.nextBlockItem = "1"; }
+            else { userObj.nextBlockItem = "0"; }
           }
+
+          let dailyObj = await dailyDB.find({id: id, phq9Tested: false, completed: true}, {}, { sort: { 'createdAt' : -1 }});
 
           let problems = [];
           let problemVal = [0,0,0,0,0];
-          const problemName = ["수면","식사","기분","사회활동","신체움직임"];
+          const problemName = ['수면', '식사', '감정', '대인 관계', '운동 부족'];
           let dailyObjGraphReady = await dailyDB.find({id: id, phq9Tested: false, completed: true, graphReady: true});
+
           if(dailyObjGraphReady.length != 0){
             for(let i = 0; i<dailyObjGraphReady.length; i++){
               problemVal[0] += parseInt(dailyObjGraphReady[i].sleep);
@@ -340,13 +388,25 @@ function getResponse(body) {
               problemVal[3] += parseInt(dailyObjGraphReady[i].social);
               problemVal[4] += parseInt(dailyObjGraphReady[i].activity);
             }
+
+            valStr = "";
             for(let i = 0; i<5; i++){
               problemVal[i] /= dailyObjGraphReady.length;
               problemVal[i] = problemVal[i].toFixed(1); //Round to at most 1 decimal place
               if(problemVal[i] < 2.5){
                 problems.push(problemName[i]);
               }
+
+              valStr += problemVal[i];
+              if(i < problemVal.length-1){
+                valStr += "_";
+              }
             }
+            await makeplot_dailyDetail(valStr);
+
+            //TODO: make image, replace image name
+            responseReplaceDict['{chart_dailyDetail}'] = ("chart_dailyDetail/dailyDetail_"+valStr);
+
             if(problems.length === 0){
               let sorted = problemVal.slice().sort(function(a,b){return b-a})
               let ranks = problemVal.map(function(v){ return sorted.indexOf(v)+1 });
@@ -360,20 +420,58 @@ function getResponse(body) {
                 }
               }
             }
-
+            //       과     와     과         와          과
+            //      이     가     이         가          이
+            // ['수면', '식사', '감정', '대인 관계', '운동 부족'];
             responseReplaceDict['{problems}'] = "";
             //TODO: 자연스럽게 말하기, ~~와 ~~, 그리고 ~~이 문제군요~
-            for(let i = 0; i<problems.length; i++){
-              responseReplaceDict['{problems}'] += problems[i];
-              if(i < problems.length-1){
-                responseReplaceDict['{problems}'] += ",";
-              }
+            if(problems.length === 1){
+              responseReplaceDict['{problems}'] += problems[0];
+              if(problems[0]==="식사" | problems[0]==="대인 관계" ){ responseReplaceDict['{problems}'] += "가"; }
+              else{ responseReplaceDict['{problems}'] += "이"; }
             }
+            else if(problems.length === 2){
+              responseReplaceDict['{problems}'] += problems[0];
+              if(problems[0]==="식사" | problems[0]==="대인 관계" ){ responseReplaceDict['{problems}'] += "와 "; }
+              else{ responseReplaceDict['{problems}'] += "과 "; }
+
+              responseReplaceDict['{problems}'] += problems[1];
+              if(problems[1]==="식사" | problems[1]==="대인 관계" ){ responseReplaceDict['{problems}'] += "가";}
+              else{ responseReplaceDict['{problems}'] += "이"; }
+            }
+            else{
+              for(let i = 0; i<problems.length-2; i++){
+                responseReplaceDict['{problems}'] += problems[i+2];
+                if(i < problems.length-3){
+                  responseReplaceDict['{problems}'] += ",";
+                }
+                else{
+                  responseReplaceDict['{problems}'] += " 그리고 ";
+                }
+              }
+              responseReplaceDict['{problems}'] += problems[0];
+              if(problems[0]==="식사" | problems[0]==="대인 관계" ){ responseReplaceDict['{problems}'] += "와 "; }
+              else{ responseReplaceDict['{problems}'] += "과 "; }
+
+              responseReplaceDict['{problems}'] += problems[1];
+              if(problems[1]==="식사" | problems[1]==="대인 관계" ){ responseReplaceDict['{problems}'] += "가";}
+              else{ responseReplaceDict['{problems}'] += "이"; }
+            }
+            // for(let i = 0; i<problems.length; i++){
+            //   responseReplaceDict['{problems}'] += problems[i];
+            //   if(i < problems.length-1){
+            //     responseReplaceDict['{problems}'] += ",";
+            //   }
+            // }
           }
+          // if there is no day detail data, show example <- TODO: 분석할 수 있는 자료가 없습니다.
           else{
-            responseReplaceDict['{problems}'] = "noGraph";
+            responseReplaceDict['{problems}'] = "수면이";
+            responseReplaceDict['{chart_dailyDetail}'] = "dailyDetail_2_3_4_4_5";
           }
-          //TODO: make image, replace image name
+
+          // console.log(responseReplaceDict);
+          //TODO: check whether the image is there or not
 
 
         }
@@ -388,13 +486,14 @@ function getResponse(body) {
           }
 
           if(phq9Obj.phq9_0 !== "-" && phq9Obj.phq9_1 !== "-" && phq9Obj.phq9_2 !== "-" && phq9Obj.phq9_3 !== "-" && phq9Obj.phq9_4 !== "-" && phq9Obj.phq9_5 !== "-" && phq9Obj.phq9_6 !== "-" && phq9Obj.phq9_7 !== "-" && phq9Obj.phq9_8 !== "-" && phq9Obj.phq9_9 !== "-") {
-            userObj.nextBlock = "PHQ9_RESULT";
-            let sum = parseInt(phq9Obj.phq9_0) + parseInt(phq9Obj.phq9_1) + parseInt(phq9Obj.phq9_2) + parseInt(phq9Obj.phq9_3) + parseInt(phq9Obj.phq9_4) + parseInt(phq9Obj.phq9_5) + parseInt(phq9Obj.phq9_6) + parseInt(phq9Obj.phq9_7) + parseInt(phq9Obj.phq9_8) - 9;
+            userObj.nextBlock = "PHQ9_END";
+            userObj.nextBlockItem = "-";
+            let dailyObj = await dailyDB.find({id: id, phq9Tested: false, completed: true}, {}, { sort: { 'createdAt' : -1 }});
 
-            if(sum < 5){ userObj.nextBlockItem = "0"; }
-            else if(sum < 10){ userObj.nextBlockItem = "1"; }
-            else if(sum < 20){ userObj.nextBlockItem = "2"; }
-            else{ userObj.nextBlockItem = "3";}
+            for(let i = 0; i<dailyObj.length; i++){
+              dailyObj[i].phq9Tested = true; //TODO: do this after phq9 test
+              await dailyObj[i].save();
+            }
 
             phq9Obj.completed = true;
           }
@@ -410,6 +509,38 @@ function getResponse(body) {
           else if(phq9Obj.phq9_9 === "-") { userObj.nextBlockItem = "PHQ9_9"; }
 
           await phq9Obj.save();
+        }
+        else if(userObj.nextBlock==="PHQ9_RESULT"){
+          let phq9Obj = await phq9DB.findOne({id: id, completed: true}, {}, { sort: { 'createdAt' : -1 } });
+
+          valStr = "";
+          if(phq9Obj !== undefined | phq9Obj !== null){
+            valStr += (((parseInt(phq9Obj.phq9_0)+parseInt(phq9Obj.phq9_1))/2-1)+"_");
+            valStr += (((parseInt(phq9Obj.phq9_4)+parseInt(phq9Obj.phq9_7))/2-1)+"_");
+            valStr += ((parseInt(phq9Obj.phq9_2)-1)+"_");
+            valStr += ((parseInt(phq9Obj.phq9_6)-1)+"_");
+            valStr += ((parseInt(phq9Obj.phq9_3)-1)+"_");
+            valStr += ((parseInt(phq9Obj.phq9_8)-1)+"_");
+            valStr += ((parseInt(phq9Obj.phq9_9)-1)*3);
+          }
+          else{
+            valStr = "3_3_2_1_3_1_0_0";
+          }
+
+          //phq order: 우울, 우울, 불면증, 식욕, 불안, 신체, 자아존중감, 불안, 자살생각, PTSD
+          //graph order: ["기분 장애", "불안 장애", "불면증", "낮은 자아존중감", "섭식 장애", "자살 생각", "외상 후 스트레스"]
+          await makeplot_PHQ9(valStr);
+
+          responseReplaceDict['{chart_phq9}'] = ("chart_phq9/phq9_"+valStr);
+
+          let sum = parseInt(phq9Obj.phq9_0) + parseInt(phq9Obj.phq9_1) + parseInt(phq9Obj.phq9_2) + parseInt(phq9Obj.phq9_3) + parseInt(phq9Obj.phq9_4) + parseInt(phq9Obj.phq9_5) + parseInt(phq9Obj.phq9_6) + parseInt(phq9Obj.phq9_7) + parseInt(phq9Obj.phq9_8) - 9;
+
+          if(sum < 5){ userObj.nextBlockItem = "0"; }
+          else if(sum < 10){ userObj.nextBlockItem = "1"; }
+          else if(sum < 20){ userObj.nextBlockItem = "2"; }
+          else{ userObj.nextBlockItem = "3";}
+
+          // userObj.nextBlockItem = "-";
         }
         else if(userObj.nextBlock==="GAD7"){
           let gad7Obj = await gad7DB.findOne({id: id}, {}, { sort: { 'createdAt' : -1 } });
@@ -557,11 +688,6 @@ function getResponse(body) {
 function getResponseBodyByUser(body, userObj, responseReplaceDict) {
   return new Promise(function (resolve, reject) {
     (async function() {
-      // userObj.nextBlock;
-      // userObj.emotionStatus;
-      // userObj.age;
-      // userObj.sex;
-      // userObj.region;
 
       console.log(userObj);
 
@@ -570,11 +696,8 @@ function getResponseBodyByUser(body, userObj, responseReplaceDict) {
       let rand = Math.floor(Math.random() * cnt);
       let responseObj = await responseDB.findOne({block: userObj.nextBlock, blockItem: userObj.nextBlockItem}).skip(rand);
 
-
       let responseBody = await getResponseBody(responseObj, responseReplaceDict);
 
-      // console.log(userObj.emotionStatus);
-      // console.log(rand);
 
       //update current block by last block
       userObj.lastBlock = userObj.nextBlock;
@@ -590,9 +713,9 @@ function getResponseBodyByUser(body, userObj, responseReplaceDict) {
 function getResponseBody(responseObj, responseReplaceDict){
   return new Promise(function (resolve, reject) {
     let botText = responseObj.botText.split("+");
-
+    console.log(responseReplaceDict);
     //TODO: image, noGraph
-    const imgCh = "{image}" in responseReplaceDict;
+    // const imgCh = "{image}" in responseReplaceDict;
     let strCh = (Object.keys(responseReplaceDict).length != 0);
     // if(imgCh){
     //   strCh = false;
@@ -609,24 +732,23 @@ function getResponseBody(responseObj, responseReplaceDict){
       else if(botText[i].split(":")[0] === "image"){
         contents.push({
           simpleImage: {
-            imageUrl: "http://3.135.208.163/"+ (imgCh?replaceAll(botText[i].split(":")[1],responseReplaceDict):botText[i].split(":")[1]),
+            imageUrl: "http://3.135.208.163/"+ (strCh?replaceAll(botText[i].split(":")[1],responseReplaceDict):botText[i].split(":")[1]),
             altText: botText[i].split(":")[1]
           }
         });
       }
       else if(botText[i].split(":")[0] === "card"){
-        console.log(botText[i].split(":")[3]);
-        console.log(replaceAll(botText[i].split(":")[3],responseReplaceDict));
         contents.push({
           basicCard: {
             title: botText[i].split(":")[2],
-            description: botText[i].split(":")[3], //botText[i].split(":")[3],
+            description: (strCh?replaceAll(botText[i].split(":")[3],responseReplaceDict):botText[i].split(":")[3]), //botText[i].split(":")[3],
             thumbnail: {
-              imageUrl: "http://3.135.208.163/"+(imgCh?replaceAll(botText[i].split(":")[1],responseReplaceDict):botText[i].split(":")[1]),//(botText[i].split(":")[1]), //TODO: image
+              imageUrl: "http://3.135.208.163/"+(strCh?replaceAll(botText[i].split(":")[1],responseReplaceDict):botText[i].split(":")[1]),//(botText[i].split(":")[1]), //TODO: image
               fixedRatio: true
             }
           }
         });
+
       }
     }
     // console.log(contents);
@@ -670,5 +792,94 @@ function replaceAll(str, map){
     }
     return str;
 }
+
+
+
+// const runDailyDetailScript = (vals) => {
+//   return spawn("python", ["-u", path.join(__dirname, "chart_dailyDetail.py"), `${vals}`]);
+// };
+
+function makeplot_dailyDetail(vals) {
+  return new Promise((resolve, reject) => {
+    // const subprocess = runDailyDetailScript(vals);
+    const subprocess = spawn("python", ["-u", path.join(__dirname, "chart_dailyDetail.py"), `${vals}`]);
+
+    subprocess.stdout.on("data", data => {
+      console.log(`data:${data}`);
+    });
+
+    subprocess.stderr.on("data", data => {
+      console.log(`error:${data}`);
+    });
+
+    subprocess.on("close", code => {
+      if (code !== 0) {
+        reject(code);
+      } else {
+        resolve(code);
+      }
+    });
+  });
+}
+
+function makeplot_PHQ9(vals) {
+  return new Promise((resolve, reject) => {
+    // const subprocess = runDailyPerWeekScript(vals);
+    const subprocess = spawn("python", [ "-u", path.join(__dirname, "chart_PHQ9.py"), `${vals}` ]);
+
+    subprocess.stdout.on("data", data => {
+      console.log(`data:${data}`);
+    });
+
+    subprocess.stderr.on("data", data => {
+      console.log(`error:${data}`);
+    });
+
+    subprocess.on("close", code => {
+      if (code !== 0) {
+        reject(code);
+      } else {
+        resolve(code);
+      }
+    });
+  });
+}
+
+
+
+
+// const runDailyPerWeekScript = (vals) => {
+//   return spawn("python", [
+//     "-u",
+//     path.join(__dirname, "chart_dailyPerWeek.py"),
+//     `${vals}`
+//   ]);
+// };
+
+function makeplot_dailyPerWeek(vals) {
+  return new Promise((resolve, reject) => {
+    // const subprocess = runDailyPerWeekScript(vals);
+    const subprocess = spawn("python", [ "-u", path.join(__dirname, "chart_dailyPerWeek.py"), `${vals}` ]);
+
+    subprocess.stdout.on("data", data => {
+      console.log(`data:${data}`);
+    });
+
+    subprocess.stderr.on("data", data => {
+      console.log(`error:${data}`);
+    });
+
+    subprocess.on("close", code => {
+      if (code !== 0) {
+        reject(code);
+      } else {
+        resolve(code);
+      }
+    });
+  });
+}
+
+
+
 
 module.exports = getResponse;
