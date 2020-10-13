@@ -10,17 +10,16 @@ let ptsdDB  = require("../models/ptsd.model");
 const path = require("path");
 const { spawn } = require("child_process");
 
+const fs = require('fs')
+
 var isDemo = true; // if true, demo mode, week analysis will use one day data
 
 // let answer = require("../models/answer.model");
 
 // TODO:
 // 웰컴블록에서 phq9로 바로 가는경우 구현
-// 같은 이름의 그래프 있으면 그거 쓰기, 없으면 생성
 // Daily push, Daily push할때 진행중이던 블록이 있으면 (특히 daily나 phq9, gad7, isi-k등의 테스트일때 그 블락 무효화 -> db에 저장중이던거 제거?)
-// demo 어떻게 보여줄지 생각?
-// {problems} 자연스럽게 바꾸기
-
+// Daily detail data 없을 때 "분석할 수 있는 자료가 없습니다."
 
 const db = require("../db");
 
@@ -112,7 +111,7 @@ function getResponse(body) {
         else if( answer === "감정 모니터링 다시 시작" ){
           userObj.lastBlock = "-";
           userObj.lastBlockItem = "-";
-          userObj.nextBlock = "DAILY_FORTUNE_END";
+          userObj.nextBlock = "DAILY_START";
           if(isDemo){ userObj.nextBlock = "DAILY_FORTUNE_END"; }
           userObj.nextBlockItem = "-";
         }
@@ -341,13 +340,11 @@ function getResponse(body) {
           let dailyObj = await dailyDB.find({id: id, phq9Tested: false, completed: true}, {}, { sort: { 'createdAt' : -1 }});
 
           if(isDemo){
-            valStr = ""+dailyObj[0].rate+"_0_1_-1_-1_0_-1";
+            valStr = "0_1_-1_-1_0_-1_"+dailyObj[0].rate;
           }
           else{
             valStr = "";
             for(let i = 0; i<7; i++){
-              // dailyObj[i].phq9Tested = true; //TODO: do this after phq9 test
-              // await dailyObj[i].save();
               valStr += dailyObj[i].rate;
               if(i < 6){
                 valStr += "_";
@@ -355,9 +352,15 @@ function getResponse(body) {
             }
           }
 
-          console.log(valStr);
+          // console.log(valStr);
 
-          await makeplot_dailyPerWeek(valStr);
+          const path = `/home/ec2-user/HOWRU/public/images/chart_dailyPerWeek/dailyPerWeek_${valStr}.png`
+
+          //make graph only when there is no graph with same name
+          if (!fs.existsSync(path)) {
+            await makeplot_dailyPerWeek(valStr);
+          }
+
           responseReplaceDict['{chart_dailyPerWeek}'] = ("chart_dailyPerWeek/dailyPerWeek_"+valStr);
 
         }
@@ -402,7 +405,13 @@ function getResponse(body) {
                 valStr += "_";
               }
             }
-            await makeplot_dailyDetail(valStr);
+            // await makeplot_dailyDetail(valStr);
+            const path = `/home/ec2-user/HOWRU/public/images/chart_dailyDetail/dailyDetail_${valStr}.png`
+
+            //make graph only when there is no graph with same name
+            if (!fs.existsSync(path)) {
+              await makeplot_dailyDetail(valStr);
+            }
 
             //TODO: make image, replace image name
             responseReplaceDict['{chart_dailyDetail}'] = ("chart_dailyDetail/dailyDetail_"+valStr);
@@ -457,22 +466,12 @@ function getResponse(body) {
               if(problems[1]==="식사" | problems[1]==="대인 관계" ){ responseReplaceDict['{problems}'] += "가";}
               else{ responseReplaceDict['{problems}'] += "이"; }
             }
-            // for(let i = 0; i<problems.length; i++){
-            //   responseReplaceDict['{problems}'] += problems[i];
-            //   if(i < problems.length-1){
-            //     responseReplaceDict['{problems}'] += ",";
-            //   }
-            // }
           }
           // if there is no day detail data, show example <- TODO: 분석할 수 있는 자료가 없습니다.
           else{
             responseReplaceDict['{problems}'] = "수면이";
             responseReplaceDict['{chart_dailyDetail}'] = "dailyDetail_2_3_4_4_5";
           }
-
-          // console.log(responseReplaceDict);
-          //TODO: check whether the image is there or not
-
 
         }
         else if(userObj.nextBlock==="PHQ9"){
@@ -490,8 +489,9 @@ function getResponse(body) {
             userObj.nextBlockItem = "-";
             let dailyObj = await dailyDB.find({id: id, phq9Tested: false, completed: true}, {}, { sort: { 'createdAt' : -1 }});
 
+            //set daily objects that are used for phq9 test criteria
             for(let i = 0; i<dailyObj.length; i++){
-              dailyObj[i].phq9Tested = true; //TODO: do this after phq9 test
+              dailyObj[i].phq9Tested = true;
               await dailyObj[i].save();
             }
 
@@ -529,7 +529,13 @@ function getResponse(body) {
 
           //phq order: 우울, 우울, 불면증, 식욕, 불안, 신체, 자아존중감, 불안, 자살생각, PTSD
           //graph order: ["기분 장애", "불안 장애", "불면증", "낮은 자아존중감", "섭식 장애", "자살 생각", "외상 후 스트레스"]
-          await makeplot_PHQ9(valStr);
+          // await makeplot_PHQ9(valStr);
+          const path = `/home/ec2-user/HOWRU/public/images/chart_phq9/phq9_${valStr}.png`
+
+          //make graph only when there is no graph with same name
+          if (!fs.existsSync(path)) {
+            await makeplot_PHQ9(valStr);
+          }
 
           responseReplaceDict['{chart_phq9}'] = ("chart_phq9/phq9_"+valStr);
 
@@ -540,7 +546,6 @@ function getResponse(body) {
           else if(sum < 20){ userObj.nextBlockItem = "2"; }
           else{ userObj.nextBlockItem = "3";}
 
-          // userObj.nextBlockItem = "-";
         }
         else if(userObj.nextBlock==="GAD7"){
           let gad7Obj = await gad7DB.findOne({id: id}, {}, { sort: { 'createdAt' : -1 } });
@@ -689,15 +694,12 @@ function getResponseBodyByUser(body, userObj, responseReplaceDict) {
   return new Promise(function (resolve, reject) {
     (async function() {
 
-      console.log(userObj);
-
       //여러개면 랜덤선택
       let cnt = await responseDB.countDocuments({block: userObj.nextBlock, blockItem: userObj.nextBlockItem});
       let rand = Math.floor(Math.random() * cnt);
       let responseObj = await responseDB.findOne({block: userObj.nextBlock, blockItem: userObj.nextBlockItem}).skip(rand);
 
       let responseBody = await getResponseBody(responseObj, responseReplaceDict);
-
 
       //update current block by last block
       userObj.lastBlock = userObj.nextBlock;
@@ -713,13 +715,8 @@ function getResponseBodyByUser(body, userObj, responseReplaceDict) {
 function getResponseBody(responseObj, responseReplaceDict){
   return new Promise(function (resolve, reject) {
     let botText = responseObj.botText.split("+");
-    console.log(responseReplaceDict);
-    //TODO: image, noGraph
-    // const imgCh = "{image}" in responseReplaceDict;
+
     let strCh = (Object.keys(responseReplaceDict).length != 0);
-    // if(imgCh){
-    //   strCh = false;
-    // }
 
     //Generate contents (bot text part); form of
     //[{ simpleText: { text: "오늘도 반가워요, 주인님!! 🧡 \n날씨가 제법 쌀쌀하던데 잘 보내셨나요 ☺️" }},
@@ -751,7 +748,6 @@ function getResponseBody(responseObj, responseReplaceDict){
 
       }
     }
-    // console.log(contents);
 
     // Generate replies
     quickReplies = [];
@@ -765,7 +761,6 @@ function getResponseBody(responseObj, responseReplaceDict){
       }
       quickReplies.push(tmp)
     }
-    // console.log(quickReplies);
 
     let responseBody = {
       version: "2.0",
@@ -775,7 +770,6 @@ function getResponseBody(responseObj, responseReplaceDict){
       }
     };
 
-    // console.log(responseBody);
     resolve(responseBody);
   });
 
@@ -794,30 +788,17 @@ function replaceAll(str, map){
 }
 
 
-
-// const runDailyDetailScript = (vals) => {
-//   return spawn("python", ["-u", path.join(__dirname, "chart_dailyDetail.py"), `${vals}`]);
-// };
-
 function makeplot_dailyDetail(vals) {
   return new Promise((resolve, reject) => {
     // const subprocess = runDailyDetailScript(vals);
     const subprocess = spawn("python", ["-u", path.join(__dirname, "chart_dailyDetail.py"), `${vals}`]);
 
-    subprocess.stdout.on("data", data => {
-      console.log(`data:${data}`);
-    });
-
-    subprocess.stderr.on("data", data => {
-      console.log(`error:${data}`);
-    });
+    subprocess.stdout.on("data", data => { console.log(`data:${data}`); });
+    subprocess.stderr.on("data", data => { console.log(`error:${data}`); });
 
     subprocess.on("close", code => {
-      if (code !== 0) {
-        reject(code);
-      } else {
-        resolve(code);
-      }
+      if (code !== 0) { reject(code); }
+      else { resolve(code); }
     });
   });
 }
@@ -827,54 +808,27 @@ function makeplot_PHQ9(vals) {
     // const subprocess = runDailyPerWeekScript(vals);
     const subprocess = spawn("python", [ "-u", path.join(__dirname, "chart_PHQ9.py"), `${vals}` ]);
 
-    subprocess.stdout.on("data", data => {
-      console.log(`data:${data}`);
-    });
-
-    subprocess.stderr.on("data", data => {
-      console.log(`error:${data}`);
-    });
+    subprocess.stdout.on("data", data => { console.log(`data:${data}`); });
+    subprocess.stderr.on("data", data => { console.log(`error:${data}`); });
 
     subprocess.on("close", code => {
-      if (code !== 0) {
-        reject(code);
-      } else {
-        resolve(code);
-      }
+      if (code !== 0) { reject(code); }
+      else { resolve(code); }
     });
   });
 }
-
-
-
-
-// const runDailyPerWeekScript = (vals) => {
-//   return spawn("python", [
-//     "-u",
-//     path.join(__dirname, "chart_dailyPerWeek.py"),
-//     `${vals}`
-//   ]);
-// };
 
 function makeplot_dailyPerWeek(vals) {
   return new Promise((resolve, reject) => {
     // const subprocess = runDailyPerWeekScript(vals);
     const subprocess = spawn("python", [ "-u", path.join(__dirname, "chart_dailyPerWeek.py"), `${vals}` ]);
 
-    subprocess.stdout.on("data", data => {
-      console.log(`data:${data}`);
-    });
-
-    subprocess.stderr.on("data", data => {
-      console.log(`error:${data}`);
-    });
+    subprocess.stdout.on("data", data => { console.log(`data:${data}`); });
+    subprocess.stderr.on("data", data => { console.log(`error:${data}`); });
 
     subprocess.on("close", code => {
-      if (code !== 0) {
-        reject(code);
-      } else {
-        resolve(code);
-      }
+      if (code !== 0) { reject(code); }
+      else { resolve(code); }
     });
   });
 }
